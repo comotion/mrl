@@ -17,7 +17,7 @@ mrl-view - a filesystem browser; using child processes for viewing files
 mrl-text-editor    - a minimal text editor; used by mrg-files
 mrl-lyd-synth      - piano with realtime synth with editable code
 mrl-flipgame  - the game often known as reversi or othello
-mrl-game-paddlewar - basic two player touch implementation of pong
+mrl-paddlewar - basic two player touch implementation of pong
 
 mrg.lua - the luajit ffi binding for microraptor gui
 cairo_h.lua cairo.lua - cairo binding to be used along with the microraptor binding
