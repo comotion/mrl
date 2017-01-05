@@ -13,8 +13,8 @@ local mrg = Mrg.new(-1,-1)
 local width=16
 local height=9
 local scale = width * height
-
 local screen = {}
+local cursor_grid=1
 
 -- 16-bit color
 -- #argb -> r, g, b, a
@@ -46,22 +46,12 @@ end
 
 local RETIME = 200
 local ink = 0x000
-local selink = 0x101
-local px, py, pc = 0, 0, 0
 
 function timeout()
   currentink = ink
-  curx, cury =  math.ceil(mrg:pointer_x()/mrg:width()*width), math.ceil(mrg:pointer_y()/mrg:height()*height)
   for x = 1, width do
     for y = 1, height do
-      if curx == x and cury == y then
-        if pc ~= 0 then screen[px][py] = pc end
-        px, py, pc = x, y, screen[x][y]
-        screen[x][y] = selink
-      else
-        screen[x][y] = (screen[x][y]*scale + currentink) / scale
-        --screen[x][y] = currentink / scale
-      end
+			screen[x][y] = (screen[x][y]*scale + currentink) / scale
       currentink = currentink + 10
     end
   end
@@ -77,6 +67,23 @@ reset()
 
 function toggle_fullscreen(event)
   event.mrg:set_fullscreen(not event.mrg:is_fullscreen()) 
+end
+
+function draw_cursor(cr, curx, cury)
+	cr:set_source_rgba(0,0,0, 0.8)
+	cr:set_line_width(1.0 / 300)
+	cr:move_to(1.0/width * curx, 0)
+	cr:line_to(1.0/width * curx, 1)
+	cr:stroke()
+	cr:move_to(1.0/width * (curx-1), 0)
+	cr:line_to(1.0/width * (curx-1), 1)
+	cr:stroke()
+	cr:move_to(0, 1.0/height * cury)
+	cr:line_to(1, 1.0/height * cury)
+	cr:stroke()
+	cr:move_to(0, 1.0/height * (cury-1))
+	cr:line_to(1, 1.0/height * (cury-1))
+	cr:stroke()
 end
 
 mrg:set_ui(function()
@@ -98,14 +105,18 @@ mrg:set_ui(function()
 
       cr:set_source_rgba(color_to_point(screen[x][y]))
       cr:rectangle(1.0/width * (x-1), 1.0/height *(y-1), 1.0/width, 1.0/height)
-      mrg:listen(Mrg.PRESS, function(ev)
-        screen[x][y] = 1.0 - screen[x][y]
-        mrg:queue_draw(nil)
-        print("got event", x, y)
-      end)
       cr:fill()
     end
   end
+	mrg:listen(Mrg.PRESS, function(ev)
+		screen[x][y] = 1.0 - screen[x][y]
+		mrg:queue_draw(nil)
+		print("got event", x, y)
+	end)
+	if cursor_grid then
+		curx, cury =  math.ceil(mrg:pointer_x()/mrg:width()*width), math.ceil(mrg:pointer_y()/mrg:height()*height)
+		draw_cursor(cr, curx, cury)
+	end
   
   -- draw grid lines
   if draw_grid then
