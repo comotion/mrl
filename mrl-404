@@ -10,11 +10,11 @@ local os = require('os')
 local math = require('math')
 local mrg = Mrg.new(-1,-1)
 
-width=16
-height=9
-scale = width * height
+local width=16
+local height=9
+local scale = width * height
 
-screen = {}
+local screen = {}
 
 -- 16-bit color
 -- #argb -> r, g, b, a
@@ -23,15 +23,16 @@ function color_to_apoint(color)
   g = math.floor(((color % 0x100) - b) / 16)
   r = math.floor(((color % 0x1000 - g) / 16 - b) / 16)
   --a = math.floor(((color%65536) - (r * 256) - (g *16) - b)/4096)
-  return r, g, b, 1
+  return r, g, b, 15
 end
 
 function color_to_point(color)
-  r, g, b = color_to_apoint(color)
-  r = r / 16
-  g = g / 16
-  b = b / 16
-  return r, g, b, 1.0
+  r, g, b, a = color_to_apoint(color)
+  r = r / 15
+  g = g / 15
+  b = b / 15
+  a = a / 15
+  return r, g, b, a
 end
 
 function reset()
@@ -44,9 +45,9 @@ function reset()
 end
 
 local RETIME = 200
-ink = 0x000
-selink = 0x939
-px, py, pc = 0, 0, 0
+local ink = 0x000
+local selink = 0x101
+local px, py, pc = 0, 0, 0
 
 function timeout()
   currentink = ink
