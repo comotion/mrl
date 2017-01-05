@@ -10,6 +10,11 @@ local os = require('os')
 local math = require('math')
 local mrg = Mrg.new(-1,-1)
 
+local RETIME = 200
+local PALETTE_STEP = 1
+local ink = 0x000
+local circles = true 
+
 local width=16
 local height=9
 local scale = width * height
@@ -44,15 +49,12 @@ function reset()
   end
 end
 
-local RETIME = 200
-local ink = 0x000
-
 function timeout()
   currentink = ink
   for x = 1, width do
     for y = 1, height do
-			screen[x][y] = (screen[x][y]*scale + currentink) / scale
-      currentink = currentink + 10
+      screen[x][y] = (screen[x][y]*scale + currentink) / scale
+      currentink = currentink + PALETTE_STEP
     end
   end
   ink = ink + 1 % 0xfff
@@ -69,21 +71,29 @@ function toggle_fullscreen(event)
   event.mrg:set_fullscreen(not event.mrg:is_fullscreen()) 
 end
 
+function toggle_palette()
+    if PALETTE_STEP == 1 then
+        PALETTE_STEP = 10
+    else
+        PALETTE_STEP = 1
+    end
+end
+
 function draw_cursor(cr, curx, cury)
-	cr:set_source_rgba(0,0,0, 0.8)
-	cr:set_line_width(1.0 / 300)
-	cr:move_to(1.0/width * curx, 0)
-	cr:line_to(1.0/width * curx, 1)
-	cr:stroke()
-	cr:move_to(1.0/width * (curx-1), 0)
-	cr:line_to(1.0/width * (curx-1), 1)
-	cr:stroke()
-	cr:move_to(0, 1.0/height * cury)
-	cr:line_to(1, 1.0/height * cury)
-	cr:stroke()
-	cr:move_to(0, 1.0/height * (cury-1))
-	cr:line_to(1, 1.0/height * (cury-1))
-	cr:stroke()
+  cr:set_source_rgba(0,0,0, 0.8)
+  cr:set_line_width(1.0 / 300)
+  cr:move_to(1.0/width * curx, 0)
+  cr:line_to(1.0/width * curx, 1)
+  cr:stroke()
+  cr:move_to(1.0/width * (curx-1), 0)
+  cr:line_to(1.0/width * (curx-1), 1)
+  cr:stroke()
+  cr:move_to(0, 1.0/height * cury)
+  cr:line_to(1, 1.0/height * cury)
+  cr:stroke()
+  cr:move_to(0, 1.0/height * (cury-1))
+  cr:line_to(1, 1.0/height * (cury-1))
+  cr:stroke()
 end
 
 mrg:set_ui(function()
@@ -97,6 +107,7 @@ mrg:set_ui(function()
   cr:scale(mrg:width(), mrg:height())
 
   cr:set_source_rgb(0.2, 0.2, 0.2)
+  mrg:listen(Mrg.KEY_DOWN, toggle_palette)
   cr:paint()
 
   for x = 1, width do
@@ -104,15 +115,14 @@ mrg:set_ui(function()
       --print("color: " ..screen[x][y], color_to_point(screen[x][y]))
 
       cr:set_source_rgba(color_to_point(screen[x][y]))
-      cr:rectangle(1.0/width * (x-1), 1.0/height *(y-1), 1.0/width, 1.0/height)
-      cr:arc (1.0/width * (x-1), 1.0/height * (y-1), 1.0/width, 1.0/height, 3.1415*2)
+        cr:rectangle(1.0/width * (x-1), 1.0/height *(y-1), 1.0/width, 1.0/height)
+      if circles then
+        cr:arc (1.0/width * (x-1), 1.0/height * (y-1), 1.0/width, 0, 3.1415*2)
+      end
       mrg:listen(Mrg.PRESS, function(ev)
-          ink = screen[x][y]
-          cr:set_source_rgba(1,0,0,1)
-          cr:arc (1.0/width * (x-0.5), 1.0/height * (y-0.5), 1.0/9/2, 0, 3.1415*2)
-          cr:stroke();
-          mrg:queue_draw(nil)
-          print("got event", x, y)
+        ink = screen[x][y]
+        if circles then circles=false else circles=true end
+        print("got event", x, y)
       end)
       cr:fill()
     end
