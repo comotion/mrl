@@ -105,14 +105,18 @@ mrg:set_ui(function()
 
       cr:set_source_rgba(color_to_point(screen[x][y]))
       cr:rectangle(1.0/width * (x-1), 1.0/height *(y-1), 1.0/width, 1.0/height)
+      cr:arc (1.0/width * (x-1), 1.0/height * (y-1), 1.0/width, 1.0/height, 3.1415*2)
+      mrg:listen(Mrg.PRESS, function(ev)
+          ink = screen[x][y]
+          cr:set_source_rgba(1,0,0,1)
+          cr:arc (1.0/width * (x-0.5), 1.0/height * (y-0.5), 1.0/9/2, 0, 3.1415*2)
+          cr:stroke();
+          mrg:queue_draw(nil)
+          print("got event", x, y)
+      end)
       cr:fill()
     end
   end
-	mrg:listen(Mrg.PRESS, function(ev)
-		screen[x][y] = 1.0 - screen[x][y]
-		mrg:queue_draw(nil)
-		print("got event", x, y)
-	end)
 	if cursor_grid then
 		curx, cury =  math.ceil(mrg:pointer_x()/mrg:width()*width), math.ceil(mrg:pointer_y()/mrg:height()*height)
 		draw_cursor(cr, curx, cury)
