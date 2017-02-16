@@ -1,0 +1,59 @@
+#!/usr/bin/env luajit
+
+-- In car entertainment system
+--
+-- Onscreen:
+--  - time
+--  - speed (+position) / GPS
+--  - song playing
+--  - text message / 4gmodem (?)
+--
+-- comotion, 2017-02-15
+
+local Mrg = require('mrg')
+local os = require('os')
+local math = require('math')
+local mrg = Mrg.new(800,600)
+local GPS = require "gps_nmea"
+local io = require 'io'
+
+--local mrg = Mrg.new(-1,-1)
+os.execute('mkfifo gps.pipe 2>/dev/null')
+os.execute('gpspipe -r -o gps.pipe &')
+io.input('gps.pipe')
+
+fix = { longitude = 0, latitude = 0, speed = 0, course = -1, altitude = 0}
+
+mrg:set_ui(
+function (mrg, data)
+  local cr = mrg:cr()
+
+	cr:set_source_rgb(0,0,0)
+	cr:paint()
+
+  mrg:set_style('color:white;font-size:50;background:black;font-family:mono')
+  local em = mrg:em()
+  mrg:set_edge_left (0.5 * em)
+  mrg:set_edge_top (0.5 * em) -- setting top causes a cursor reset, so do it after left
+  mrg:set_edge_right (mrg:width()-0.5 * em)
+  
+	mrg:print(os.date("%a\n%d %b  "))
+  mrg:set_style('font-size:100;')
+	mrg:print(os.date("%H:%M:%S"))
+
+	local gps = GPS.Decode(io.read("*line"))
+	if type(gps) == 'table' then
+		for k,v in pairs(gps) do
+			fix[k] = v
+		end
+	end 
+  mrg:set_style('font-size:30;')
+	mrg:print(string.format("%2.02f°N\n%2.02f°W\n%3dm     ", fix.latitude, fix.longitude, fix.altitude))
+  mrg:set_style('font-size:100;')
+	mrg:print(string.format("%3d km/h\n", fix.speed))
+  mrg:add_binding("q", NULL, NULL, function (foo) mrg:quit() end)
+  mrg:queue_draw(nil)
+end)
+
+mrg:set_title('twotontruck')
+mrg:main()
