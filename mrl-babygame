@@ -1,0 +1,238 @@
+#!/usr/bin/env luajit
+-- a pointless game for babies
+--
+-- inspired by cowlarks 404 page and pippins mrl-synth
+--
+-- comotion, 2017-01-01
+
+local Mrg = require('mrg')
+local os = require('os')
+local math = require('math')
+local mrg = Mrg.new(-1,-1)
+
+local  Lyd = require('lyd')
+local lyd = Lyd.new()
+--# square (hz) * adsr(0.1,0,1.0,0.1)
+lyd:set_patch(100, "sin (hz=440) * adsr(0.4,0,1.0,0.1)")
+--lyd:set_patch(100, "pluck(hz=440)*adsr(0.0,0,vol=4,5.0)")
+--lyd:set_patch(100, "pluck( hz * (1.0 + sin(21)/100)) + pluck( hz * (1.0 + sin(20)/100)) + pluck( hz * (1.0 + sin(22)/100))")
+--lyd:set_patch(100, 'saw(hz=440)*adsr(0.1,0.5,1.0,0.1) * 0.5')
+--Examples to try?
+--lyd:set_patch(100, "reverb (0.1, 0.223, low_pass (0.1, hz=440.0, 0.01, pulse(200 + sin(190) * 1.4, square(8.0)) * adsr(0.12, 0.12, 0.8, 0.30))) * volume=1.0 * 0.4")
+--lyd:set_patch(100, 'sin(hz + square(40)) * adsr(0.2,0.2,0.8,0.4)')
+
+
+local RETIME = 200
+local PALETTE_STEP = 1
+local ink = 0x000
+local circles = true 
+
+local width=16
+local height=9
+local scale = width * height
+local screen = {}
+local cursor_grid=1
+
+-- 16-bit color
+-- #argb -> r, g, b, a
+function color_to_apoint(color)
+  b = color % 0x10
+  g = math.floor(((color % 0x100) - b) / 16)
+  r = math.floor(((color % 0x1000 - g) / 16 - b) / 16)
+  --a = math.floor(((color%65536) - (r * 256) - (g *16) - b)/4096)
+  return r, g, b, 15
+end
+
+function color_to_point(color)
+  r, g, b, a = color_to_apoint(color)
+  r = r / 15
+  g = g / 15
+  b = b / 15
+  a = a / 15
+  return r, g, b, a
+end
+
+function note_to_hz(no)
+  local hz = 55/4.0
+  local twelfth_root_of_two = 1.0594630943592952645
+  for step = 1, no do
+    hz = hz * twelfth_root_of_two;
+  end
+  return hz
+end
+
+function reset()
+  for x = 1, width do
+    screen[x] = {}
+    for y = 1, height do
+      screen[x][y] = 0
+    end
+  end
+end
+
+function timeout()
+  currentink = ink
+  for x = 1, width do
+    for y = 1, height do
+      screen[x][y] = (screen[x][y]*scale + currentink) / scale
+      currentink = currentink + PALETTE_STEP
+    end
+  end
+  ink = ink + 1 % 0xfff
+  mrg:queue_draw(nil)
+  mrg:add_timeout(RETIME, timeout)
+  return 0
+end
+mrg:add_timeout(RETIME, timeout)
+
+reset()
+
+function toggle_fullscreen(event)
+  event.mrg:set_fullscreen(not event.mrg:is_fullscreen()) 
+end
+
+function play_note(note)
+	lyd:note(100, note_to_hz(note), 0.1, 1.0)
+	ink = note*10
+	--print(ink)
+end
+
+function key_event()
+    if PALETTE_STEP == 1 then
+        PALETTE_STEP = 10
+    else
+        PALETTE_STEP = 1
+    end
+end
+
+cursorink = 0xe22
+function draw_cursor(cr, curx, cury)
+  cr:set_source_rgba(0,0,0, 0.8)
+  cr:set_line_width(1.0 / 300)
+  cr:move_to(1.0/width * curx, 0)
+  cr:line_to(1.0/width * curx, 1)
+  cr:stroke()
+  cr:move_to(1.0/width * (curx-1), 0)
+  cr:line_to(1.0/width * (curx-1), 1)
+  cr:stroke()
+  cr:move_to(0, 1.0/height * cury)
+  cr:line_to(1, 1.0/height * cury)
+  cr:stroke()
+  cr:move_to(0, 1.0/height * (cury-1))
+  cr:line_to(1, 1.0/height * (cury-1))
+  cr:stroke()
+	cr:set_source_rgba(color_to_point(cursorink))
+  cr:arc (1.0/width * (curx-0.5), 1.0/height * (cury-0.5), 1.0/width, 0, 3.1415*2)
+	cr:fill()
+end
+
+mrg:set_ui(function()
+  local cr = mrg:cr()
+  dim = mrg:width()
+  if dim > mrg:height() then dim = mrg:height() end
+
+  --cr:translate((mrg:width()-dim)/2, (mrg:height()-dim)/2)
+
+  cr:save()
+  cr:scale(mrg:width(), mrg:height())
+
+  cr:set_source_rgb(0.2, 0.2, 0.2)
+  mrg:listen(Mrg.KEY_DOWN, key_event)
+  cr:paint()
+
+  for x = 1, width do
+    for y = 1, height do
+      --print("color: " ..screen[x][y], color_to_point(screen[x][y]))
+
+      cr:set_source_rgba(color_to_point(screen[x][y]))
+        cr:rectangle(1.0/width * (x-1), 1.0/height *(y-1), 1.0/width, 1.0/height)
+      if circles then
+        cr:arc (1.0/width * (x-1), 1.0/height * (y-1), 1.0/width, 0, 3.1415*2)
+      end
+      mrg:listen(Mrg.PRESS, function(ev)
+        ink = screen[x][y]
+				cursorink = ink
+				play_note(ink%50+50)
+        if circles then circles=false else circles=true end
+      end)
+      cr:fill()
+    end
+  end
+	if cursor_grid then
+		curx, cury =  math.ceil(mrg:pointer_x()/mrg:width()*width), math.ceil(mrg:pointer_y()/mrg:height()*height)
+		draw_cursor(cr, curx, cury)
+	end
+  
+  -- draw grid lines
+  if draw_grid then
+    cr:set_source_rgba(0,0,0, 0.8)
+    cr:set_line_width(1.0 / 3000)
+    for x = 0, width do
+      cr:move_to(1.0/width * x, 0)
+      cr:line_to(1.0/width * x, 1)
+      cr:stroke()
+    end
+    for y = 0, height do
+      cr:move_to(0, 1.0/height * y)
+      cr:line_to(1, 1.0/height * y)
+      cr:stroke()
+    end
+  end
+
+  cr:restore()
+
+  mrg:add_binding("1", NULL, NULL, function() play_note(50) end)
+  mrg:add_binding("q", NULL, NULL, function() play_note(51) end)
+  mrg:add_binding("a", NULL, NULL, function() play_note(52) end)
+  mrg:add_binding("z", NULL, NULL, function() play_note(53) end)
+  mrg:add_binding("2", NULL, NULL, function() play_note(54) end)
+  mrg:add_binding("w", NULL, NULL, function() play_note(55) end)
+  mrg:add_binding("s", NULL, NULL, function() play_note(56) end)
+  mrg:add_binding("x", NULL, NULL, function() play_note(57) end)
+  mrg:add_binding("3", NULL, NULL, function() play_note(58) end)
+  mrg:add_binding("e", NULL, NULL, function() play_note(59) end)
+  mrg:add_binding("d", NULL, NULL, function() play_note(60) end)
+  mrg:add_binding("c", NULL, NULL, function() play_note(61) end)
+  mrg:add_binding("4", NULL, NULL, function() play_note(62) end)
+  mrg:add_binding("r", NULL, NULL, function() play_note(63) end)
+  mrg:add_binding("f", NULL, NULL, function() play_note(64) end)
+  mrg:add_binding("v", NULL, NULL, function() play_note(65) end)
+  mrg:add_binding("5", NULL, NULL, function() play_note(66) end)
+  mrg:add_binding("t", NULL, NULL, function() play_note(67) end)
+  mrg:add_binding("g", NULL, NULL, function() play_note(68) end)
+  mrg:add_binding("b", NULL, NULL, function() play_note(69) end)
+  mrg:add_binding("6", NULL, NULL, function() play_note(70) end)
+  mrg:add_binding("y", NULL, NULL, function() play_note(71) end)
+  mrg:add_binding("h", NULL, NULL, function() play_note(72) end)
+  mrg:add_binding("n", NULL, NULL, function() play_note(73) end)
+  mrg:add_binding("7", NULL, NULL, function() play_note(74) end)
+  mrg:add_binding("u", NULL, NULL, function() play_note(75) end)
+  mrg:add_binding("j", NULL, NULL, function() play_note(76) end)
+  mrg:add_binding("m", NULL, NULL, function() play_note(77) end)
+  mrg:add_binding("n", NULL, NULL, function() play_note(78) end)
+  mrg:add_binding("8", NULL, NULL, function() play_note(79) end)
+  mrg:add_binding("i", NULL, NULL, function() play_note(80) end)
+  mrg:add_binding("k", NULL, NULL, function() play_note(81) end)
+  mrg:add_binding(",", NULL, NULL, function() play_note(82) end)
+  mrg:add_binding("9", NULL, NULL, function() play_note(83) end)
+  mrg:add_binding("o", NULL, NULL, function() play_note(84) end)
+  mrg:add_binding("l", NULL, NULL, function() play_note(85) end)
+  mrg:add_binding(".", NULL, NULL, function() play_note(86) end)
+  mrg:add_binding("0", NULL, NULL, function() play_note(87) end)
+  mrg:add_binding("p", NULL, NULL, function() play_note(88) end)
+  mrg:add_binding(";", NULL, NULL, function() play_note(89) end)
+  mrg:add_binding("/", NULL, NULL, function() play_note(90) end)
+  mrg:add_binding("-", NULL, NULL, function() play_note(91) end)
+  mrg:add_binding("[", NULL, NULL, function() play_note(92) end)
+  mrg:add_binding("\\", NULL, NULL, function() play_note(93) end)
+  mrg:add_binding("control-q", NULL, NULL, function () mrg:quit() end)
+  mrg:add_binding("escape", NULL, NULL,    function () mrg:quit() end)
+  mrg:add_binding("control-f", NULL, NULL,   toggle_fullscreen)
+  mrg:add_binding("F11", NULL, NULL, toggle_fullscreen)
+end)
+
+mrg:add_timeout(100, timeout)
+mrg:set_title('404')
+mrg:main()
+
+
