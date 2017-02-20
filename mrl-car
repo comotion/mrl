@@ -77,8 +77,13 @@ function (mrg, data)
   mrg:set_style('font-size:100;')
   mrg:print(string.format("%3d km/h\n", fix.speed))
   mrg:add_binding("q", NULL, NULL, function (foo) mrg:quit() end)
-  mrg:queue_draw(nil)
 end)
 
+function redraw()
+	mrg:queue_draw(nil)
+	mrg:add_timeout(500, redraw)
+	return 0
+end
+mrg:add_timeout(500, redraw)
 mrg:set_title('twotontruck')
 mrg:main()
