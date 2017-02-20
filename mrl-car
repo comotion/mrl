@@ -38,7 +38,6 @@ function poll_gps()
   while true do
     local nbytes = ffi.C.read(fd, buffer, chunksize)
     if nbytes ~= 0 then
-      print(nbytes)
       local gps = GPS.Decode(ffi.string(buffer))
       if type(gps) == 'table' then
         for k,v in pairs(gps) do
