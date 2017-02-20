@@ -9,6 +9,20 @@
 
 local _GPS = {}
 
+function _GPS.postostring(latitude, longitude)
+	if latitude < 0 then
+		lat = string.format("%2.02f°S", -latitude)
+	else
+		lat = string.format("%2.02f°N", latitude)
+	end
+	if longitude < 0 then
+		lon = string.format("%2.02f°E", -longitude)
+	else
+		lon = string.format("%2.02f°W", longitude)
+	end
+	return lat, lon
+end
+
 -- Decode method for NMEA sentences (line is a group of them) and returns a
 -- table with the understood values (the most significant).
 function _GPS.Decode (line) 
