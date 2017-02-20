@@ -15,21 +15,49 @@ local os = require('os')
 local math = require('math')
 local mrg = Mrg.new(800,600)
 local GPS = require "gps_nmea"
-local io = require 'io'
+-- we need nonblocking io
+local ffi = require'ffi'
 
---local mrg = Mrg.new(-1,-1)
+ffi.cdef[[
+  int open(const char* pathname, int flags);
+  int close(int fd);
+  int read(int fd, void* buf, size_t count);
+]]
+local O_NONBLOCK = 2048
+local chunksize = 4096
+local buffer = ffi.new('uint8_t[?]', chunksize)
+
 os.execute('mkfifo gps.pipe 2>/dev/null')
 os.execute('gpspipe -r -o gps.pipe &')
-io.input('gps.pipe')
 
-fix = { longitude = 0, latitude = 0, speed = 0, course = -1, altitude = 0}
+local fd = ffi.C.open('gps.pipe', O_NONBLOCK)     
+
+fix = { longitude = 0.0, latitude = 0.0, speed = 0, course = -1, altitude = 0}
+
+function poll_gps()
+  while true do
+    local nbytes = ffi.C.read(fd, buffer, chunksize)
+    if nbytes ~= 0 then
+      print(nbytes)
+      local gps = GPS.Decode(ffi.string(buffer))
+      if type(gps) == 'table' then
+        for k,v in pairs(gps) do
+          fix[k] = v
+        end
+      end
+    end
+    coroutine.yield()
+  end
+end
+
+gpspoller = coroutine.wrap(poll_gps)
 
 mrg:set_ui(
 function (mrg, data)
   local cr = mrg:cr()
 
-	cr:set_source_rgb(0,0,0)
-	cr:paint()
+  cr:set_source_rgb(0,0,0)
+  cr:paint()
 
   mrg:set_style('color:white;font-size:50;background:black;font-family:mono')
   local em = mrg:em()
@@ -37,20 +65,17 @@ function (mrg, data)
   mrg:set_edge_top (0.5 * em) -- setting top causes a cursor reset, so do it after left
   mrg:set_edge_right (mrg:width()-0.5 * em)
   
-	mrg:print(os.date("%a\n%d %b  "))
+  mrg:print(os.date("%a\n%d %b  "))
   mrg:set_style('font-size:100;')
-	mrg:print(os.date("%H:%M:%S"))
+  mrg:print(os.date("%H:%M:%S"))
 
-	local gps = GPS.Decode(io.read("*line"))
-	if type(gps) == 'table' then
-		for k,v in pairs(gps) do
-			fix[k] = v
-		end
-	end 
+  gpspoller()
+  local lat,lon = GPS.postostring(fix.latitude,fix.longitude)
+
   mrg:set_style('font-size:30;')
-	mrg:print(string.format("%2.02f°N\n%2.02f°W\n%3dm     ", fix.latitude, fix.longitude, fix.altitude))
+  mrg:print(string.format("%s\n%s\n%3dm     ", lat, lon, fix.altitude))
   mrg:set_style('font-size:100;')
-	mrg:print(string.format("%3d km/h\n", fix.speed))
+  mrg:print(string.format("%3d km/h\n", fix.speed))
   mrg:add_binding("q", NULL, NULL, function (foo) mrg:quit() end)
   mrg:queue_draw(nil)
 end)
