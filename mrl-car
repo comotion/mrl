@@ -15,9 +15,14 @@ local os = require('os')
 local math = require('math')
 local mrg = Mrg.new(800,600)
 local GPS = require "gps_nmea"
--- we need nonblocking io
 local ffi = require'ffi'
+local syscall = require'syscall'
 
+io.input('/etc/TZ')
+syscall.setenv('TZ', io.read('*line'))
+io.close()
+
+-- we need nonblocking io
 ffi.cdef[[
   int open(const char* pathname, int flags);
   int close(int fd);
