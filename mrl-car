@@ -13,7 +13,7 @@
 local Mrg = require('mrg')
 local os = require('os')
 local math = require('math')
-local mrg = Mrg.new(800,600)
+local mrg = Mrg.new(640,480)
 local GPS = require "gps_nmea"
 local ffi = require'ffi'
 local syscall = require'syscall'
