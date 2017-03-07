@@ -18,9 +18,10 @@ local GPS = require "gps_nmea"
 local ffi = require'ffi'
 local syscall = require'syscall'
 
-io.input('/etc/TZ')
-syscall.setenv('TZ', io.read('*line'))
-io.close()
+if syscall.stat('/etc/TZ') and io.input('/etc/TZ') then
+	syscall.setenv('TZ', io.read('*line'))
+	io.close()
+end
 
 -- we need nonblocking io
 ffi.cdef[[
