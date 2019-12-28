@@ -13,19 +13,34 @@ local mrg = Mrg.new(-1,-1)
 local  Lyd = require('lyd')
 local lyd = Lyd.new()
 --# square (hz) * adsr(0.1,0,1.0,0.1)
-lyd:set_patch(100, "sin (hz=440) * adsr(0.4,0,1.0,0.1)")
---lyd:set_patch(100, "pluck(hz=440)*adsr(0.0,0,vol=4,5.0)")
---lyd:set_patch(100, "pluck( hz * (1.0 + sin(21)/100)) + pluck( hz * (1.0 + sin(20)/100)) + pluck( hz * (1.0 + sin(22)/100))")
---lyd:set_patch(100, 'saw(hz=440)*adsr(0.1,0.5,1.0,0.1) * 0.5')
---Examples to try?
---lyd:set_patch(100, "reverb (0.1, 0.223, low_pass (0.1, hz=440.0, 0.01, pulse(200 + sin(190) * 1.4, square(8.0)) * adsr(0.12, 0.12, 0.8, 0.30))) * volume=1.0 * 0.4")
---lyd:set_patch(100, 'sin(hz + square(40)) * adsr(0.2,0.2,0.8,0.4)')
+
+voices = {
+--# no worky# "reverb (0.1, 0.223, low_pass (0.1, hz=440.0, 0.01, pulse(200 + sin(190) * 1.4, square(8.0)) * adsr(0.12, 0.12, 0.8, 0.30))) * volume=1.0 ",
+    "sin (hz=440) * adsr(0.4,0,1.0,0.1)",
+    "pluck(hz=440)*adsr(0.0,0,vol=4,5.0)",
+    "pluck( hz * (1.0 + sin(21)/100)) + pluck( hz * (1.0 + sin(20)/100)) + pluck( hz * (1.0 + sin(22)/100))",
+    "saw(hz=440)*adsr(0.1,0.5,1.0,0.1) * 0.5",
+    "sin(hz + square(40)) * adsr(0.2,0.2,0.8,0.4)",
+--#22 harmonica
+    "possin(hz*2.000+evensin(hz*2.000) * 0.444 * adsr(0.430,0.697,1.000,0.538) + sin(6.4) * (hz*0.05)) * 0.762 * adsr(0.512,0.697,1.000,0.538) * volume=1.0",
+}
 
 
+local i = 0
+function switch_instruments()
+    i = (i + 1) % #voices
+    if i == 0 then
+        i = 1
+    end
+    print("voice",  i)
+    lyd:set_patch(100, voices[i])
+end
+switch_instruments(i)
+    
 local RETIME = 200
 local PALETTE_STEP = 1
 local ink = 0x000
-local circles = true 
+local circles = false
 
 local width=16
 local height=9
@@ -229,6 +244,7 @@ mrg:set_ui(function()
   mrg:add_binding("escape", NULL, NULL,    function () mrg:quit() end)
   mrg:add_binding("control-f", NULL, NULL,   toggle_fullscreen)
   mrg:add_binding("F11", NULL, NULL, toggle_fullscreen)
+  mrg:add_binding("space", NULL, NULL, function() switch_instruments() end)
 end)
 
 mrg:add_timeout(100, timeout)
